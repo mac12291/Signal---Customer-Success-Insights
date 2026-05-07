@@ -24,8 +24,25 @@ AI_MODEL = "gpt-5.4" if _is_replit else "gpt-4o"
 CYARA_PRODUCTS = ["Velocity", "Pulse", "Pulse 360", "Cruncher", "Botium", "ResolveAX", "Voice Assure"]
 
 # ── Database ───────────────────────────────────────────────────────────────────
+def _get_database_url() -> str:
+    # Support both os.environ and Streamlit Cloud secrets
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        try:
+            url = st.secrets["DATABASE_URL"]
+        except Exception:
+            pass
+    if not url:
+        st.error("DATABASE_URL is not configured. Add it to your Streamlit secrets or environment variables.")
+        st.stop()
+    # psycopg2 requires postgresql://, not postgres://
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url
+
 def get_conn():
-    return psycopg2.connect(os.environ["DATABASE_URL"], cursor_factory=psycopg2.extras.RealDictCursor)
+    url = _get_database_url()
+    return psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor, sslmode="prefer")
 
 def fetch_all_analyses():
     with get_conn() as conn:
